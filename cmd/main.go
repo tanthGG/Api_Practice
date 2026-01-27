@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -17,6 +16,9 @@ import (
 
 	"go-api-practice/config"
 	"go-api-practice/internal/handlers"
+	skillshandlers "go-api-practice/internal/handlers/skills"
+	"go-api-practice/internal/repositories"
+	"go-api-practice/internal/services"
 )
 
 func main() {
@@ -40,7 +42,12 @@ func main() {
 	server.Use(middleware.CORS())
 
 	healthHandler := handlers.NewHealthCheckHandler()
-	httpServer := handlers.NewHttpServer(cfg, server, healthHandler, logger)
+
+	skillRepo := repositories.NewMySQLSkillRepository(db)
+	skillService := services.NewSkillService(skillRepo)
+	skillHandler := skillshandlers.NewSkillHandler(skillService, logger)
+
+	httpServer := handlers.NewHttpServer(cfg, server, healthHandler, skillHandler, logger)
 
 	addr := fmt.Sprintf(":%s", cfg.App.Port)
 	go func() {
@@ -50,15 +57,16 @@ func main() {
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	<-ctx.Done()
 
 	logger.Info("shutdown signal received, closing server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := httpServer.Server().Shutdown(ctx); err != nil {
+	if err := httpServer.Server().Shutdown(shutdownCtx); err != nil {
 		logger.Errorf("graceful shutdown failed: %v", err)
 	}
 	logger.Info("server exited")
