@@ -1,0 +1,20 @@
+app:
+  name: skill-api
+  port: "80"
+  version: "1.0"
+  mobile-version: "1.0.0"
+  project_id: InternProject
+  env: dev
+
+log:
+  env: "dev"
+  level: "debug"
+
+db-sql:
+  dbname: "skills_db"
+  host: "(localhost:3306)"
+  username: skill_user
+  password: skill_pass
+  maxIdleConns: 32
+  maxOpenConns: 64
+  maxLifeTimeMinutes: 5m
