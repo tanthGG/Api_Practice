@@ -16,9 +16,6 @@ import (
 
 	"go-api-practice/config"
 	"go-api-practice/internal/handlers"
-	skillshandlers "go-api-practice/internal/handlers/skills"
-	"go-api-practice/internal/repositories"
-	"go-api-practice/internal/services"
 )
 
 func main() {
@@ -36,18 +33,14 @@ func main() {
 	defer db.Close()
 
 	server := echo.New()
-	server.HideBanner = true
+	server.HideBanner = false
 	server.Use(middleware.Logger())
 	server.Use(middleware.Recover())
 	server.Use(middleware.CORS())
 
 	healthHandler := handlers.NewHealthCheckHandler()
 
-	skillRepo := repositories.NewMySQLSkillRepository(db)
-	skillService := services.NewSkillService(skillRepo)
-	skillHandler := skillshandlers.NewSkillHandler(skillService, logger)
-
-	httpServer := handlers.NewHttpServer(cfg, server, healthHandler, skillHandler, logger)
+	httpServer := handlers.NewHttpServer(cfg, server, healthHandler, logger)
 
 	addr := fmt.Sprintf(":%s", cfg.App.Port)
 	go func() {
