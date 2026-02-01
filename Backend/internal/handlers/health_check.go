@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -16,9 +18,9 @@ func NewHealthCheckHandler() *HealthCheckHandler {
 }
 
 func (h *HealthCheckHandler) HealthCheck(c echo.Context) error {
-	return c.String(200, "ok")
+	return c.JSON(http.StatusOK, "Status: 200 ok!!")
 }
 
 func (h *HealthCheckHandler) ReadinessCheck(c echo.Context) error {
-	return c.String(200, "ok")
+	return c.JSON(http.StatusOK, "Status: 200 ok!!")
 }

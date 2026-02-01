@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"go-api-practice/config"
+	"go-api-practice/internal/handlers/rest"
+	"go-api-practice/internal/services"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -12,6 +14,7 @@ type HttpServer struct {
 	server             *echo.Echo
 	healthCheckHandler IHealthCheckHandler
 	logger             *logrus.Logger
+	loanService        services.LoanService
 }
 
 func NewHttpServer(
@@ -19,12 +22,14 @@ func NewHttpServer(
 	server *echo.Echo,
 	healthCheckHandler IHealthCheckHandler,
 	logger *logrus.Logger,
+	loanService services.LoanService,
 ) *HttpServer {
 	httpServer := &HttpServer{
 		config:             config,
 		server:             server,
 		healthCheckHandler: healthCheckHandler,
 		logger:             logger,
+		loanService:        loanService,
 	}
 	httpServer.initRoute()
 
@@ -38,7 +43,9 @@ func (s *HttpServer) initRoute() {
 
 	api := e.Group("/api")
 	v1 := api.Group("/v1")
-	_ = v1.Group("/loan")
+	loanHandler := rest.NewLoanHandler(s.logger, s.loanService)
+	loanGroup := v1.Group("/loans")
+	loanGroup.POST("", loanHandler.Apply)
 
 }
 

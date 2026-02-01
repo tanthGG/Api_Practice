@@ -118,7 +118,7 @@ func LoadConfig() (*Config, error) {
 	viper.AddConfigPath(".")
 
 	// Environment variables
-	viper.SetEnvPrefix("MARKETPLACE")
+	viper.SetEnvPrefix("LOANSAPI")
 	viper.AutomaticEnv()
 
 	// Allow overriding via common envs (useful in Docker)
@@ -127,12 +127,6 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("db-sql.username", "DB_USER")
 	viper.BindEnv("db-sql.password", "DB_PASSWORD")
 	viper.BindEnv("app.port", "APP_PORT")
-
-	// Redis envs
-	viper.BindEnv("redis.host", "REDIS_HOST")
-	viper.BindEnv("redis.port", "REDIS_PORT")
-	viper.BindEnv("redis.password", "REDIS_PASSWORD")
-	viper.BindEnv("redis.db", "REDIS_DB")
 
 	// Defaults
 	setDefaults()
@@ -151,7 +145,7 @@ func LoadConfig() (*Config, error) {
 
 func setDefaults() {
 	// App
-	viper.SetDefault("app.name", "marketplace-merchant-api")
+	viper.SetDefault("app.name", "loans-api")
 	viper.SetDefault("app.port", "80")
 	viper.SetDefault("app.version", "1.0.0")
 	viper.SetDefault("app.env", "dev")
@@ -162,9 +156,9 @@ func setDefaults() {
 
 	// SQL
 	viper.SetDefault("db-sql.host", "tcp(localhost:3306)")
-	viper.SetDefault("db-sql.dbname", "marketplace_db")
-	viper.SetDefault("db-sql.username", "marketplace")
-	viper.SetDefault("db-sql.password", "password")
+	viper.SetDefault("db-sql.dbname", "loans_db")
+	viper.SetDefault("db-sql.username", "loan_user")
+	viper.SetDefault("db-sql.password", "loan_pass")
 	viper.SetDefault("db-sql.maxIdleConns", 32)
 	viper.SetDefault("db-sql.maxOpenConns", 64)
 	viper.SetDefault("db-sql.maxLifeTimeMinutes", "5m")
