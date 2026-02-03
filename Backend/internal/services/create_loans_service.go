@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ func NewLoanService(repo repositories.LoanRepository, logger *logrus.Logger) Loa
 }
 
 func (s *loanService) Apply(ctx context.Context, input ApplyLoanInput) (*ApplyLoanResult, error) {
+	fmt.Println("Check Apply Services")
 	now := time.Now().UTC()
 
 	eligible, reason := evaluateEligibility(input)

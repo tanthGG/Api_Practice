@@ -116,7 +116,7 @@ func validateApplyLoanRequest(req ApplyLoanRequest) *errorResponse {
 		return invalidBodyMissingFields()
 	}
 
-	if len(fullName) < 2 || len(fullName) > 255 {
+	if len(fullName) < 2 || len(fullName) > 255 { //
 		return &errorResponse{
 			Message: "Invalid request body",
 			Reason:  "fullName must be between 2 and 255 characters",
