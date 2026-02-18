@@ -46,6 +46,8 @@ func (s *HttpServer) initRoute() {
 	loanHandler := rest.NewLoanHandler(s.logger, s.loanService)
 	loanGroup := v1.Group("/loans")
 	loanGroup.POST("", loanHandler.Apply)
+	loanGroup.GET("", loanHandler.ListLoans)
+	loanGroup.GET("/:applicationId", loanHandler.GetStatus)
 
 }
 

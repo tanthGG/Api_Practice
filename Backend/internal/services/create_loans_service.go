@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -16,6 +15,8 @@ import (
 
 type LoanService interface {
 	Apply(ctx context.Context, input ApplyLoanInput) (*ApplyLoanResult, error)
+	GetStatus(ctx context.Context, applicationID string) (*LoanStatusResult, error)
+	ListLoans(ctx context.Context, page, limit int, eligible *bool, purpose *string) (*LoanListResult, error)
 }
 
 type ApplyLoanInput struct {
@@ -35,6 +36,12 @@ type ApplyLoanResult struct {
 	Timestamp     string
 }
 
+type LoanListResult struct {
+	Applications []LoanStatusResult
+	Page         int
+	TotalPages   int
+}
+
 var ErrIneligible = errors.New("loan application not eligible")
 
 type loanService struct {
@@ -50,7 +57,6 @@ func NewLoanService(repo repositories.LoanRepository, logger *logrus.Logger) Loa
 }
 
 func (s *loanService) Apply(ctx context.Context, input ApplyLoanInput) (*ApplyLoanResult, error) {
-	fmt.Println("Check Apply Services")
 	now := time.Now().UTC()
 
 	eligible, reason := evaluateEligibility(input)

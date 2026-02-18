@@ -17,9 +17,11 @@ import (
 )
 
 type loanServiceMock struct {
-	applyFunc func(ctx context.Context, input services.ApplyLoanInput) (*services.ApplyLoanResult, error)
-	calls     int
-	lastInput services.ApplyLoanInput
+	applyFunc  func(ctx context.Context, input services.ApplyLoanInput) (*services.ApplyLoanResult, error)
+	statusFunc func(ctx context.Context, id string) (*services.LoanStatusResult, error)
+	listFunc   func(ctx context.Context, page, limit int, eligible *bool, purpose *string) (*services.LoanListResult, error)
+	calls      int
+	lastInput  services.ApplyLoanInput
 }
 
 func (m *loanServiceMock) Apply(ctx context.Context, input services.ApplyLoanInput) (*services.ApplyLoanResult, error) {
@@ -27,6 +29,20 @@ func (m *loanServiceMock) Apply(ctx context.Context, input services.ApplyLoanInp
 	m.lastInput = input
 	if m.applyFunc != nil {
 		return m.applyFunc(ctx, input)
+	}
+	return nil, nil
+}
+
+func (m *loanServiceMock) GetStatus(ctx context.Context, id string) (*services.LoanStatusResult, error) {
+	if m.statusFunc != nil {
+		return m.statusFunc(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *loanServiceMock) ListLoans(ctx context.Context, page, limit int, eligible *bool, purpose *string) (*services.LoanListResult, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx, page, limit, eligible, purpose)
 	}
 	return nil, nil
 }
@@ -218,4 +234,164 @@ func TestLoanHandlerApply_ServiceError(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}
+}
+
+func TestLoanHandlerGetStatus(t *testing.T) {
+	e := echo.New()
+
+	t.Run("success", func(t *testing.T) {
+		mockService := &loanServiceMock{
+			statusFunc: func(ctx context.Context, id string) (*services.LoanStatusResult, error) {
+				return &services.LoanStatusResult{
+					ApplicationID: "loan-123",
+					FullName:      "John Doe",
+					MonthlyIncome: 20000,
+					LoanAmount:    50000,
+					LoanPurpose:   "home",
+					Age:           30,
+					PhoneNumber:   "0851234554",
+					Email:         "john@example.com",
+					Eligible:      true,
+					Reason:        "Eligible under base rules",
+					Timestamp:     "2026-02-04T00:00:00Z",
+				}, nil
+			},
+		}
+		handler := NewLoanHandler(newTestLogger(), mockService)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans/loan-123", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("applicationId")
+		c.SetParamValues("loan-123")
+
+		if err := handler.GetStatus(c); err != nil {
+			t.Fatalf("GetStatus returned error: %v", err)
+		}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("missing id", func(t *testing.T) {
+		handler := NewLoanHandler(newTestLogger(), &loanServiceMock{})
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		if err := handler.GetStatus(c); err != nil {
+			t.Fatalf("GetStatus returned error: %v", err)
+		}
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		mockService := &loanServiceMock{
+			statusFunc: func(ctx context.Context, id string) (*services.LoanStatusResult, error) {
+				return nil, services.ErrLoanNotFound
+			},
+		}
+		handler := NewLoanHandler(newTestLogger(), mockService)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans/loan-123", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("applicationId")
+		c.SetParamValues("loan-123")
+
+		if err := handler.GetStatus(c); err != nil {
+			t.Fatalf("GetStatus returned error: %v", err)
+		}
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404", rec.Code)
+		}
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		mockService := &loanServiceMock{
+			statusFunc: func(ctx context.Context, id string) (*services.LoanStatusResult, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		handler := NewLoanHandler(newTestLogger(), mockService)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans/loan-123", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("applicationId")
+		c.SetParamValues("loan-123")
+
+		if err := handler.GetStatus(c); err != nil {
+			t.Fatalf("GetStatus returned error: %v", err)
+		}
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want 500", rec.Code)
+		}
+	})
+}
+
+func TestLoanHandlerListLoans(t *testing.T) {
+	e := echo.New()
+
+	t.Run("success default params", func(t *testing.T) {
+		mockService := &loanServiceMock{
+			listFunc: func(ctx context.Context, page, limit int, eligible *bool, purpose *string) (*services.LoanListResult, error) {
+				return &services.LoanListResult{
+					Page:       page,
+					TotalPages: 2,
+					Applications: []services.LoanStatusResult{
+						{ApplicationID: "loan-123", FullName: "John"},
+					},
+				}, nil
+			},
+		}
+		handler := NewLoanHandler(newTestLogger(), mockService)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		if err := handler.ListLoans(c); err != nil {
+			t.Fatalf("ListLoans error: %v", err)
+		}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d want 200", rec.Code)
+		}
+	})
+
+	t.Run("invalid eligible param", func(t *testing.T) {
+		handler := NewLoanHandler(newTestLogger(), &loanServiceMock{})
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans?eligible=maybe", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		if err := handler.ListLoans(c); err != nil {
+			t.Fatalf("ListLoans error: %v", err)
+		}
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status %d want 400", rec.Code)
+		}
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		mockService := &loanServiceMock{
+			listFunc: func(ctx context.Context, page, limit int, eligible *bool, purpose *string) (*services.LoanListResult, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		handler := NewLoanHandler(newTestLogger(), mockService)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/loans", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		if err := handler.ListLoans(c); err != nil {
+			t.Fatalf("ListLoans error: %v", err)
+		}
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status %d want 500", rec.Code)
+		}
+	})
 }
