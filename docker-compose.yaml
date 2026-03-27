@@ -21,5 +21,6 @@ services:
       retries: 10
     restart: unless-stopped
 
+
 volumes:
   mysql_data:
